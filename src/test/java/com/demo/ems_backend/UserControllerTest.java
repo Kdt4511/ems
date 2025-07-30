@@ -11,6 +11,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.Arrays;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -70,5 +72,33 @@ public class UserControllerTest {
         mockMvc.perform(delete("/users/1"))
                 .andExpect(status().isNoContent());
     }
+
+    @Test
+    public void testUpdateUser() throws Exception {
+            // Existing user
+            Long userId = 1L;
+            User existingUser = new User("Old Name", "old@example.com");
+            existingUser.setId(userId);
+
+            // Updated user details
+            User updatedDetails = new User("New Name", "new@example.com");
+
+            // Mock behavior
+            when(userRepository.findById(userId)).thenReturn(Optional.of(existingUser));
+            when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+            // Perform PUT request
+            mockMvc.perform(put("/users/{id}", userId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(updatedDetails)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("New Name"))
+                .andExpect(jsonPath("$.email").value("new@example.com"));
+
+            // Verify save was called with updated data
+            verify(userRepository, times(1)).save(argThat(user -> 
+                user.getName().equals("New Name") && user.getEmail().equals("new@example.com")
+            ));
+        }
 }
 
